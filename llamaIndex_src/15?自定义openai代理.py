@@ -107,7 +107,7 @@ from llama_index import (
 print(111)
 import yaml
 import os
-with open('resources/application.yaml', 'r') as file:
+with open('../resources/application.yaml', 'r') as file:
     data = yaml.safe_load(file)
 os.environ["OPENAI_API_KEY"] = data['openai']['api_key']
 os.environ["OPENAI_API_BASE"] = data['openai']['base_url']

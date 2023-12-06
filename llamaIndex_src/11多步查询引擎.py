@@ -2,11 +2,15 @@ import logging
 import sys
 from typing import List
 
+from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
+
+from llama_index.callbacks import LlamaDebugHandler, CallbackManager
+
 from llama_index.core import BaseRetriever
 from llama_index.embeddings import BaseEmbedding
 from llama_index.indices.keyword_table import KeywordTableSimpleRetriever
 from llama_index.indices.vector_store import VectorIndexRetriever
-from llama_index.query_engine import RouterQueryEngine
+from llama_index.query_engine import RouterQueryEngine, SubQuestionQueryEngine
 from llama_index.schema import NodeWithScore
 
 # logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -14,16 +18,15 @@ from llama_index.schema import NodeWithScore
 from llama_index import (
     VectorStoreIndex,
     SimpleDirectoryReader,
-    ServiceContext, StorageContext, SimpleKeywordTableIndex, QueryBundle, SummaryIndex,
+    ServiceContext, StorageContext, SimpleKeywordTableIndex, QueryBundle, SummaryIndex, LLMPredictor,
+    get_response_synthesizer,
 )
 from llama_index.postprocessor import LLMRerank
 from llama_index.llms import HuggingFaceLLM
 
 
 
-'''
-定义一个自定义路由器查询引擎，它从多个候选查询引擎中选择一个来执行查询
-'''
+
 
 
 
@@ -60,14 +63,10 @@ from llama_index.llms import HuggingFaceLLM
 
 
 
-# setup prompts - specific to StableLM
-from llama_index.prompts import PromptTemplate
-from llama_index.selectors import LLMSingleSelector
-from llama_index.selectors.pydantic_selectors import (
-    PydanticMultiSelector,
-    PydanticSingleSelector,
-)
 
+
+
+from llama_index.prompts import PromptTemplate
 # This will wrap the default prompts that are internal to llama-index
 # taken from https://huggingface.co/Writer/camel-5b-hf
 query_wrapper_prompt = PromptTemplate(
@@ -97,14 +96,11 @@ service_context = ServiceContext.from_defaults(embed_model="local:/home/qcsun/s2
 
 
 
+'''
+多步骤查询引擎，能够将复杂的查询分解为连续的子问题
 
-# 加载数据
-documents = SimpleDirectoryReader("./data/paul_graham").load_data()
-# initialize service context (set chunk size)
-nodes = service_context.node_parser.get_nodes_from_documents(documents)
-# initialize storage context (by default it's in-memory)
-storage_context = StorageContext.from_defaults()
-storage_context.docstore.add_documents(nodes)
+目前未知和子问题查询引擎区别
+'''
 
 
 
@@ -112,12 +108,9 @@ storage_context.docstore.add_documents(nodes)
 
 
 
-
-
-
-# 定义相同数据上的汇总索引和向量索引
-summary_index = SummaryIndex(nodes, storage_context=storage_context, service_context=service_context)
-vector_index = VectorStoreIndex(nodes, storage_context=storage_context, service_context=service_context)
+# load documents
+documents = SimpleDirectoryReader("../data/paul_graham/").load_data()
+index = VectorStoreIndex.from_documents(documents, service_context=service_context)
 
 
 
@@ -125,28 +118,12 @@ vector_index = VectorStoreIndex(nodes, storage_context=storage_context, service_
 
 
 
-# 为这些索引定义查询引擎和工具
-list_query_engine = summary_index.as_query_engine(
-    response_mode="tree_summarize", use_async=True
+
+# 设置子问题查询引擎
+step_decompose_transform = StepDecomposeQueryTransform(
+    LLMPredictor(llm=llm), verbose=True
 )
-vector_query_engine = vector_index.as_query_engine(
-    response_mode="tree_summarize", use_async=True
-)
-from llama_index.tools.query_engine import QueryEngineTool
-list_tool = QueryEngineTool.from_defaults(
-    query_engine=list_query_engine,
-    description=(
-        "Useful for summarization questions related to Paul Graham eassy on"
-        " What I Worked On."
-    ),
-)
-vector_tool = QueryEngineTool.from_defaults(
-    query_engine=vector_query_engine,
-    description=(
-        "Useful for retrieving specific context from Paul Graham essay on What"
-        " I Worked On."
-    ),
-)
+
 
 
 
@@ -156,23 +133,20 @@ vector_tool = QueryEngineTool.from_defaults(
 
 
 # 定义检索增强路由器查询引擎
-from llama_index import VectorStoreIndex
-from llama_index.objects import ObjectIndex, SimpleToolNodeMapping
-tool_mapping = SimpleToolNodeMapping.from_objects([list_tool, vector_tool])
-obj_index = ObjectIndex.from_objects(
-    [list_tool, vector_tool],
-    tool_mapping,
-    VectorStoreIndex,
-    service_context=service_context
+index_summary = "Used to answer questions about the author"
+from llama_index.query_engine.multistep_query_engine import (
+    MultiStepQueryEngine,
 )
-from llama_index.query_engine import ToolRetrieverRouterQueryEngine
-query_engine = ToolRetrieverRouterQueryEngine(obj_index.as_retriever(), service_context=service_context)
-response = query_engine.query("What is a biography of the author's life?")
-print(response)
-
-
-
-
-
+query_engine = index.as_query_engine(service_context=service_context)
+query_engine = MultiStepQueryEngine(
+    query_engine=query_engine,
+    query_transform=step_decompose_transform,
+    index_summary=index_summary,
+    response_synthesizer=get_response_synthesizer(service_context=service_context)
+)
+response_gpt4 = query_engine.query(
+    "Who was in the first batch of the accelerator program the author started?",
+)
+print(response_gpt4)
 
 

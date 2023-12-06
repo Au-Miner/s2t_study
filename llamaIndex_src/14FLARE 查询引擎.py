@@ -97,7 +97,7 @@ service_context = ServiceContext.from_defaults(embed_model="local:/home/qcsun/s2
 
 
 
-documents = SimpleDirectoryReader("./data/paul_graham").load_data()
+documents = SimpleDirectoryReader("../data/paul_graham").load_data()
 index = VectorStoreIndex.from_documents(
     documents, service_context=service_context
 )

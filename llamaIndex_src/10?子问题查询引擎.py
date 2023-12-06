@@ -126,7 +126,7 @@ service_context = ServiceContext.from_defaults(embed_model="local:/home/qcsun/s2
 
 
 # 加载数据
-pg_essay = SimpleDirectoryReader(input_dir="./data/paul_graham/").load_data()
+pg_essay = SimpleDirectoryReader(input_dir="../data/paul_graham/").load_data()
 # build index and query engine
 vector_query_engine = VectorStoreIndex.from_documents(
     pg_essay, use_async=True,

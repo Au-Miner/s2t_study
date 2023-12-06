@@ -94,7 +94,7 @@ from llama_index.tools import QueryEngineTool, ToolMetadata
 print(111)
 import yaml
 import os
-with open('resources/application.yaml', 'r') as file:
+with open('../resources/application.yaml', 'r') as file:
     data = yaml.safe_load(file)
 os.environ["OPENAI_API_KEY"] = data['openai']['api_key']
 os.environ["OPENAI_API_BASE"] = data['openai']['base_url']
@@ -135,7 +135,7 @@ for title in wiki_titles:
     ).json()
     page = next(iter(response["query"]["pages"].values()))
     wiki_text = page["extract"]
-    data_path = Path("data")
+    data_path = Path("../data")
     if not data_path.exists():
         Path.mkdir(data_path)
     with open(data_path / f"{title}.txt", "w") as fp:

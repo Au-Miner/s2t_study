@@ -54,7 +54,7 @@ from llama_index.llms import HuggingFaceLLM, OpenAI
 print(111)
 import yaml
 import os
-with open('resources/application.yaml', 'r') as file:
+with open('../resources/application.yaml', 'r') as file:
     data = yaml.safe_load(file)
 os.environ["OPENAI_API_KEY"] = data['openai']['api_key']
 os.environ["OPENAI_API_BASE"] = data['openai']['base_url']
@@ -71,7 +71,7 @@ print(222)
 
 
 # 加载数据
-documents = SimpleDirectoryReader("./data/paul_graham").load_data()
+documents = SimpleDirectoryReader("../data/paul_graham").load_data()
 node_parser = service_context.node_parser
 
 nodes = node_parser.get_nodes_from_documents(documents)

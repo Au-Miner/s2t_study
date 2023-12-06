@@ -91,7 +91,7 @@ from llama_index.llms import HuggingFaceLLM, OpenAI
 print(111)
 import yaml
 import os
-with open('resources/application.yaml', 'r') as file:
+with open('../resources/application.yaml', 'r') as file:
     data = yaml.safe_load(file)
 os.environ["OPENAI_API_KEY"] = data['openai']['api_key']
 os.environ["OPENAI_API_BASE"] = data['openai']['base_url']
@@ -115,7 +115,7 @@ TODO:
 
 
 
-documents = SimpleDirectoryReader("./data/paul_graham/").load_data()
+documents = SimpleDirectoryReader("../data/paul_graham/").load_data()
 index = VectorStoreIndex.from_documents(documents, service_context=service_context)
 query = "What did the author do growing up?"
 base_query_engine = index.as_query_engine()
